@@ -6,7 +6,8 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 
 // Health check (Render)
-app.get("/health", (_req, res) => res.status(200).send("ok"));
+app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
+
 
 function buildServer() {
   const server = new McpServer({
