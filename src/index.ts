@@ -1,57 +1,10 @@
 import express, { Request, Response } from "express";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
 // Health check (Render)
 app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
-
-
-function buildServer() {
-  const server = new McpServer({
-    name: "gds-mcp-server",
-    version: "0.1.0",
-  });
-
-  // Define the tool so clients can discover it via tools/list
-  server.tool(
-    "gds_generate_component",
-    {
-      description:
-        "Generates a React (TS) component using Chakra + GDS tokens + @gdesignsystem/icons. Returns files[].",
-      // JSON Schema (keeps it simple; no Zod compat issues)
-      inputSchema: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Component name, e.g. LoginCard" },
-          purpose: { type: "string", description: "What the component does" },
-        },
-        required: ["name", "purpose"],
-        additionalProperties: false,
-      },
-    },
-    // NOTE: We intentionally won't rely on args plumbing here.
-    // Actual tools/call is handled in /mcp route below for reliability.
-    async () => {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              { note: "Use tools/call on /mcp; this tool is discoverable via tools/list." },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-  );
-
-  return server;
-}
 
 function generateComponentFiles(name: string, purpose: string) {
   const code = `import React from "react";
@@ -90,78 +43,71 @@ export function ${name}({ title = "${name}" }: ${name}Props) {
   };
 }
 
-// MCP endpoint
-app.post("/mcp", async (req: Request, res: Response) => {
+// MCP-like endpoint (MVP): handles tools/call only
+app.post("/mcp", (req: Request, res: Response) => {
   const body: any = req.body;
 
-  // ✅ MVP: handle tools/call directly for reliable arg parsing
-  if (body?.method === "tools/call") {
-    const toolName = body?.params?.name;
-    const toolArgs = body?.params?.arguments;
+  // Enforce Accept header like MCP streamable HTTP clients do
+  const accept = String(req.headers.accept || "");
+  if (!accept.includes("application/json") || !accept.includes("text/event-stream")) {
+    return res.status(406).json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32000,
+        message: "Not Acceptable: Client must accept both application/json and text/event-stream",
+      },
+      id: null,
+    });
+  }
 
-    if (toolName !== "gds_generate_component") {
-      return res.status(200).json({
-        jsonrpc: "2.0",
-        id: body?.id ?? null,
-        error: { code: -32601, message: `Unknown tool: ${toolName}` },
-      });
-    }
-
-    const name = toolArgs?.name;
-    const purpose = toolArgs?.purpose;
-
-    if (typeof name !== "string" || name.trim().length === 0) {
-      return res.status(200).json({
-        jsonrpc: "2.0",
-        id: body?.id ?? null,
-        error: { code: -32602, message: "Missing or invalid argument: name" },
-      });
-    }
-
-    if (typeof purpose !== "string" || purpose.trim().length === 0) {
-      return res.status(200).json({
-        jsonrpc: "2.0",
-        id: body?.id ?? null,
-        error: { code: -32602, message: "Missing or invalid argument: purpose" },
-      });
-    }
-
-    const payload = generateComponentFiles(name, purpose);
-
+  if (body?.method !== "tools/call") {
     return res.status(200).json({
       jsonrpc: "2.0",
       id: body?.id ?? null,
-      result: {
-        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-      },
+      error: { code: -32601, message: "Only tools/call is supported in this MVP" },
     });
   }
 
-  // ✅ For other MCP methods (e.g., tools/list), let the MCP transport handle it
-  const server = buildServer();
+  const toolName = body?.params?.name;
+  const toolArgs = body?.params?.arguments;
 
-  try {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
+  if (toolName !== "gds_generate_component") {
+    return res.status(200).json({
+      jsonrpc: "2.0",
+      id: body?.id ?? null,
+      error: { code: -32601, message: `Unknown tool: ${toolName}` },
     });
-
-    await server.connect(transport);
-    await transport.handleRequest(req, res, body);
-
-    res.on("close", () => {
-      transport.close();
-      server.close();
-    });
-  } catch (err) {
-    console.error(err);
-    if (!res.headersSent) {
-      res.status(500).json({
-        jsonrpc: "2.0",
-        error: { code: -32603, message: "Internal server error" },
-        id: null,
-      });
-    }
   }
+
+  const name = toolArgs?.name;
+  const purpose = toolArgs?.purpose;
+
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return res.status(200).json({
+      jsonrpc: "2.0",
+      id: body?.id ?? null,
+      error: { code: -32602, message: "Missing or invalid argument: name" },
+    });
+  }
+
+  if (typeof purpose !== "string" || purpose.trim().length === 0) {
+    return res.status(200).json({
+      jsonrpc: "2.0",
+      id: body?.id ?? null,
+      error: { code: -32602, message: "Missing or invalid argument: purpose" },
+    });
+  }
+
+  const payload = generateComponentFiles(name, purpose);
+
+  // Return JSON-RPC response (works with your curl and with app callers)
+  return res.status(200).json({
+    jsonrpc: "2.0",
+    id: body?.id ?? null,
+    result: {
+      content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    },
+  });
 });
 
 const PORT = Number(process.env.PORT || 10000);
