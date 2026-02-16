@@ -43,13 +43,13 @@ export function ${name}({ title = "${name}" }: ${name}Props) {
   };
 }
 
-// MCP-like endpoint (MVP): handles tools/call only
+// Minimal MCP-ish JSON-RPC endpoint for ChatGPT connector creation
 app.post("/mcp", (req: Request, res: Response) => {
   const body: any = req.body;
 
-  // Enforce Accept header like MCP streamable HTTP clients do
+  // Some clients require this Accept header; keep it, but don't block connector creation too aggressively.
   const accept = String(req.headers.accept || "");
-  if (!accept.includes("application/json") || !accept.includes("text/event-stream")) {
+  if (accept && (!accept.includes("application/json") || !accept.includes("text/event-stream"))) {
     return res.status(406).json({
       jsonrpc: "2.0",
       error: {
@@ -60,53 +60,102 @@ app.post("/mcp", (req: Request, res: Response) => {
     });
   }
 
-  if (body?.method !== "tools/call") {
+  const id = body?.id ?? null;
+  const method = body?.method;
+
+  // 1) initialize (handshake)
+  if (method === "initialize") {
     return res.status(200).json({
       jsonrpc: "2.0",
-      id: body?.id ?? null,
-      error: { code: -32601, message: "Only tools/call is supported in this MVP" },
+      id,
+      result: {
+        protocolVersion: body?.params?.protocolVersion ?? "2024-11-05",
+        serverInfo: { name: "gds-mcp-server", version: "0.2.0" },
+        capabilities: {
+          tools: {},
+        },
+      },
     });
   }
 
-  const toolName = body?.params?.name;
-  const toolArgs = body?.params?.arguments;
-
-  if (toolName !== "gds_generate_component") {
+  // 2) tools/list (so ChatGPT can discover available tools)
+  if (method === "tools/list") {
     return res.status(200).json({
       jsonrpc: "2.0",
-      id: body?.id ?? null,
-      error: { code: -32601, message: `Unknown tool: ${toolName}` },
+      id,
+      result: {
+        tools: [
+          {
+            name: "gds_generate_component",
+            description:
+              "Generates a React (TS) component using Chakra + GDS tokens + @gdesignsystem/icons. Returns files[].",
+            inputSchema: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Component name, e.g. LoginCard" },
+                purpose: { type: "string", description: "What the component does" },
+              },
+              required: ["name", "purpose"],
+              additionalProperties: false,
+            },
+          },
+        ],
+      },
     });
   }
 
-  const name = toolArgs?.name;
-  const purpose = toolArgs?.purpose;
+  // 3) tools/call (actual generation)
+  if (method === "tools/call") {
+    const toolName = body?.params?.name;
+    const toolArgs = body?.params?.arguments;
 
-  if (typeof name !== "string" || name.trim().length === 0) {
+    if (toolName !== "gds_generate_component") {
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32601, message: `Unknown tool: ${toolName}` },
+      });
+    }
+
+    const name = toolArgs?.name;
+    const purpose = toolArgs?.purpose;
+
+    if (typeof name !== "string" || name.trim().length === 0) {
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32602, message: "Missing or invalid argument: name" },
+      });
+    }
+    if (typeof purpose !== "string" || purpose.trim().length === 0) {
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32602, message: "Missing or invalid argument: purpose" },
+      });
+    }
+
+    const payload = generateComponentFiles(name, purpose);
+
     return res.status(200).json({
       jsonrpc: "2.0",
-      id: body?.id ?? null,
-      error: { code: -32602, message: "Missing or invalid argument: name" },
+      id,
+      result: {
+        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+      },
     });
   }
 
-  if (typeof purpose !== "string" || purpose.trim().length === 0) {
-    return res.status(200).json({
-      jsonrpc: "2.0",
-      id: body?.id ?? null,
-      error: { code: -32602, message: "Missing or invalid argument: purpose" },
-    });
+  // Optional: notifications/cancel or pings
+  if (method === "ping") {
+    return res.status(200).json({ jsonrpc: "2.0", id, result: {} });
   }
 
-  const payload = generateComponentFiles(name, purpose);
-
-  // Return JSON-RPC response (works with your curl and with app callers)
+  // Default: method not found
   return res.status(200).json({
     jsonrpc: "2.0",
-    id: body?.id ?? null,
-    result: {
-      content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-    },
+    id,
+    error: { code: -32601, message: `Method not supported: ${method}` },
   });
 });
 
