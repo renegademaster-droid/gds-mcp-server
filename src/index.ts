@@ -23,7 +23,8 @@ export function ${name}({ title = "${name}" }: ${name}Props) {
         ${purpose}
       </Text>
 
-      <Button mt={4} colorScheme="brand" leftIcon={<CheckIcon aria-hidden />}>
+      <Button mt={4} colorPalette="brand">
+        <CheckIcon aria-hidden />
         Action
       </Button>
     </Box>
@@ -38,7 +39,8 @@ export function ${name}({ title = "${name}" }: ${name}Props) {
     ],
     notes: [
       "Wrap your app with GDSProvider from @gdesignsystem/react.",
-      "Prefer semantic tokens like bg.default / fg / border.muted.",
+      "Use semantic tokens: bg.default, fg, fg.muted, border.muted.",
+      "GDS uses Chakra UI v3 only: use colorPalette (not colorScheme), put icons as Button children (not leftIcon/rightIcon). Forms: Field.Root, Field.Label, Field.HelperText, Field.ErrorText (not FormControl/FormLabel). Tables: Table.Root, Table.Header, Table.Body, Table.Row, Table.ColumnHeader, Table.Cell (not Table/Thead/Tbody/Tr/Th/Td).",
     ],
   };
 }
@@ -88,7 +90,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           {
             name: "gds_generate_component",
             description:
-              "Generates a React (TS) component using Chakra + GDS tokens + @gdesignsystem/icons. Returns files[].",
+              "Generates a React (TS) component using Chakra UI v3 + GDS tokens + @gdesignsystem/icons. IMPORTANT: GDS uses Chakra v3 only. Use colorPalette (not colorScheme), icons as children (not leftIcon/rightIcon), Field.Root/Field.Label (not FormControl/FormLabel), Table.Root/Table.Header/Table.Body etc. (not Table/Thead/Tbody/Tr/Th/Td). Returns files[] and notes with v3 reminders.",
             inputSchema: {
               type: "object",
               properties: {
@@ -99,15 +101,54 @@ app.post("/mcp", (req: Request, res: Response) => {
               additionalProperties: false,
             },
           },
+          {
+            name: "gds_chakra_v3_guide",
+            description:
+              "Returns the Chakra UI v3 API rules for GDS. Call this when generating any React/Chakra code for GDS so you use v3 component names and props (e.g. colorPalette not colorScheme, Field not FormControl, Table.Root not Table). Prevents 'doesn't provide an export named X' runtime errors.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+          },
         ],
       },
     });
   }
 
-  // 3) tools/call (actual generation)
+  // 3) tools/call (actual generation or guide)
   if (method === "tools/call") {
     const toolName = body?.params?.name;
-    const toolArgs = body?.params?.arguments;
+    const toolArgs = body?.params?.arguments ?? {};
+
+    if (toolName === "gds_chakra_v3_guide") {
+      const guide = `# Chakra UI v3 API for GDS (use these, not v2)
+
+GDS uses **Chakra UI v3 only**. Using v2 component names causes runtime errors: "doesn't provide an export named X".
+
+## Props
+- Use **colorPalette** (not colorScheme) on Button, Badge, Alert, etc.
+- Button: put icons as **children** (not leftIcon/rightIcon). Example: <Button><CheckIcon /> Label</Button>
+- Modal: use **open** / **onOpenChange** (not isOpen/onClose)
+- Form: use **invalid** on Field.Root (not isInvalid on FormControl)
+
+## Component renames (v2 → v3)
+- **Forms:** FormControl, FormLabel, FormHelperText, FormErrorMessage → **Field.Root, Field.Label, Field.HelperText, Field.ErrorText**
+- **Tables:** Table, Thead, Tbody, Tr, Th, Td, TableContainer → **Table.Root, Table.Header, Table.Body, Table.Row, Table.ColumnHeader, Table.Cell, Table.ScrollArea** (use textAlign="end" instead of isNumeric)
+- **Modal:** Modal, ModalOverlay, ModalContent, etc. → **Dialog.Root, Dialog.Backdrop, Dialog.Positioner, Dialog.Content, Dialog.Header, Dialog.Title, Dialog.Body, Dialog.Footer, Dialog.CloseTrigger**
+- **Other:** Divider → Separator; Collapse → Collapsible.Root + Collapsible.Content; Select → NativeSelect.Root/Field/Indicator; Alert/AlertIcon → Alert.Root/Alert.Indicator/Alert.Content/Alert.Title/Alert.Description; Avatar → Avatar.Root/Image/Fallback; CircularProgress → ProgressCircle.Root/Circle/Track/Range
+- **Tabs:** Tab, TabList, TabPanel, TabPanels → **Tabs.Trigger, Tabs.List, Tabs.Content** (use value; no TabPanels wrapper)
+- **Accordion:** AccordionButton, AccordionIcon → **Accordion.Trigger, Accordion.ItemIndicator**; allowMultiple→multiple, allowToggle→collapsible, index→value
+
+When generating GDS UI code, always use the v3 names and props above.`;
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [{ type: "text", text: guide }],
+        },
+      });
+    }
 
     if (toolName !== "gds_generate_component") {
       return res.status(200).json({
