@@ -6,6 +6,74 @@ app.use(express.json({ limit: "2mb" }));
 // Health check (Render)
 app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
 
+/**
+ * PREPEND this to every tool response so the model sees it FIRST before generating any code.
+ * From GDS_CHAKRA_V3_PROMPT.txt: NEVER import list + USE THESE INSTEAD + login card example.
+ */
+const GDS_CHAKRA_V3_PROMPT = `GDS uses Chakra UI v3 only. You MUST NOT import these from @chakra-ui/react (they do not exist in v3 and cause "doesn't provide an export named X"):
+  Divider, Card, CardHeader, CardBody, CardFooter, FormControl, FormLabel, FormErrorMessage, FormHelperText, Table, Thead, Tbody, Tr, Th, Td, TableContainer, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton, Tab, TabList, TabPanel, TabPanels, Select, Alert, AlertIcon, AlertTitle, AlertDescription, Collapse
+
+USE THESE INSTEAD (Chakra v3):
+  Divider → Separator
+  Card, CardHeader, CardBody, CardFooter → Card.Root, Card.Header, Card.Body, Card.Footer (and Card.Title, Card.Description)
+  FormControl, FormLabel, FormErrorMessage, FormHelperText → Field.Root, Field.Label, Field.ErrorText, Field.HelperText
+  Table, Thead, Tbody, Tr, Th, Td → Table.Root, Table.Header, Table.Body, Table.Row, Table.ColumnHeader, Table.Cell
+  Modal* → Dialog.Root, Dialog.Backdrop, Dialog.Content, Dialog.Header, Dialog.Body, Dialog.Footer, Dialog.CloseTrigger
+  Tab, TabList, TabPanel → Tabs.Trigger, Tabs.List, Tabs.Content
+  Props: colorPalette (not colorScheme), invalid (not isInvalid), open/onOpenChange (not isOpen/onClose), textAlign="end" (not isNumeric)
+
+--- Example: Login card (Chakra v3, copy this pattern) ---
+
+import * as React from "react";
+import {
+  Box,
+  Button,
+  Card,
+  Field,
+  Heading,
+  Input,
+  Separator,
+  Stack,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
+
+export function LoginCard() {
+  return (
+    <Card.Root maxW="md">
+      <Card.Header>
+        <Card.Title>Sign in</Card.Title>
+        <Card.Description>Enter your credentials</Card.Description>
+      </Card.Header>
+      <Card.Body>
+        <VStack gap="4" align="stretch">
+          <Field.Root>
+            <Field.Label>Email</Field.Label>
+            <Input type="email" placeholder="you@example.com" />
+            <Field.ErrorText>Invalid email</Field.ErrorText>
+          </Field.Root>
+          <Field.Root>
+            <Field.Label>Password</Field.Label>
+            <Input type="password" placeholder="••••••••" />
+            <Field.ErrorText>Required</Field.ErrorText>
+          </Field.Root>
+        </VStack>
+      </Card.Body>
+      <Card.Footer>
+        <Button colorPalette="brand" width="full">Sign in</Button>
+      </Card.Footer>
+    </Card.Root>
+  );
+}
+
+--- For any login/form card: import Card, Field, Input, Button, Separator (not Divider), Stack/VStack/Box/Text/Heading from @chakra-ui/react. Use Card.Root, Card.Header, Card.Body, Card.Footer, Field.Root, Field.Label, Field.ErrorText. Never import FormControl, FormLabel, FormErrorMessage, Divider, CardHeader, CardBody, CardFooter.
+`;
+
+/** Prepend GDS v3 prompt to every tool response so the model gets it first. */
+function prependGdsPrompt(responseText: string): string {
+  return GDS_CHAKRA_V3_PROMPT + "\n\n--- Response ---\n\n" + responseText;
+}
+
 /** Chakra v3 reference: included in every tool response so the LLM always has it in context. */
 const CHAKRA_V3_GUIDE = `
 --- GDS: Chakra UI v3 only (use these names or you get "doesn't provide an export named X") ---
@@ -255,7 +323,7 @@ app.post("/mcp", (req: Request, res: Response) => {
         jsonrpc: "2.0",
         id,
         result: {
-          content: [{ type: "text", text: `# Chakra UI v3 API for GDS${CHAKRA_V3_GUIDE}` }],
+          content: [{ type: "text", text: prependGdsPrompt(`# Chakra UI v3 API for GDS${CHAKRA_V3_GUIDE}`) }],
         },
       });
     }
@@ -269,7 +337,7 @@ app.post("/mcp", (req: Request, res: Response) => {
         id,
         result: {
           content: [
-            { type: "text", text: snippet + instruction + CHAKRA_V3_GUIDE },
+            { type: "text", text: prependGdsPrompt(snippet + instruction + CHAKRA_V3_GUIDE) },
           ],
         },
       });
@@ -309,7 +377,7 @@ app.post("/mcp", (req: Request, res: Response) => {
       jsonrpc: "2.0",
       id,
       result: {
-        content: [{ type: "text", text: responseText }],
+        content: [{ type: "text", text: prependGdsPrompt(responseText) }],
       },
     });
   }
