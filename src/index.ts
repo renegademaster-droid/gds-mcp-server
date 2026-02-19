@@ -9,8 +9,12 @@ app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"))
 /** Chakra v3 reference: included in every tool response so the LLM always has it in context. */
 const CHAKRA_V3_GUIDE = `
 --- GDS: Chakra UI v3 only (use these names or you get "doesn't provide an export named X") ---
+Applies to ALL GDS UI: dashboard, inbox, content page, form, card, layout, settings, list, table, modal, tabs, etc. When the user asks for ANY screen or component with GDS, use ONLY the v3 names below.
 Do NOT use: Divider → use Separator
 Do NOT use: FormControl, FormLabel, FormHelperText, FormErrorMessage → use Field.Root, Field.Label, Field.HelperText, Field.ErrorText
+Do NOT use: Card, CardHeader, CardBody, CardFooter → use Card.Root, Card.Header, Card.Body, Card.Footer (and Card.Title, Card.Description)
+Do NOT use: Checkbox (flat) → use Checkbox.Root, Checkbox.HiddenInput, Checkbox.Control, Checkbox.Indicator, Checkbox.Label
+Do NOT use: InputRightElement, InputLeftElement → use InputGroup with endElement or startElement prop (node, not a component)
 Do NOT use: Table, Thead, Tbody, Tr, Th, Td, TableContainer → use Table.Root, Table.Header, Table.Body, Table.Row, Table.ColumnHeader, Table.Cell, Table.ScrollArea (use textAlign="end" not isNumeric)
 Do NOT use: Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton → use Dialog.Root, Dialog.Backdrop, Dialog.Positioner, Dialog.Content, Dialog.Header, Dialog.Title, Dialog.Body, Dialog.Footer, Dialog.CloseTrigger
 Do NOT use: colorScheme → use colorPalette
@@ -22,8 +26,104 @@ Do NOT use: Tab, TabList, TabPanel, TabPanels → use Tabs.Trigger, Tabs.List, T
 Do NOT use: AccordionButton, AccordionIcon → use Accordion.Trigger, Accordion.ItemIndicator
 Do NOT use: Avatar (flat) → use Avatar.Root, Avatar.Image, Avatar.Fallback
 Do NOT use: CircularProgress → use ProgressCircle.Root, ProgressCircle.Circle, ProgressCircle.Track, ProgressCircle.Range
-When writing any GDS/Chakra code in this chat, use ONLY the v3 names above.
+When writing ANY GDS/Chakra code (dashboard, inbox, content page, form, card, layout, etc.), use ONLY the v3 names above.
 ---`;
+
+/** Production-ready LoginCard in Chakra v3 only (Separator, Field.*, Card.*, Checkbox.Root, InputGroup endElement). */
+function getLoginCardSnippet(): string {
+  return `import * as React from "react";
+import {
+  Box,
+  Button,
+  Card,
+  Checkbox,
+  Field,
+  Heading,
+  IconButton,
+  Input,
+  InputGroup,
+  Link,
+  Separator,
+  Stack,
+  Text,
+} from "@chakra-ui/react";
+
+export function LoginCard() {
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [emailError, setEmailError] = React.useState("");
+  const [passwordError, setPasswordError] = React.useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError("");
+    setPasswordError("");
+    // Add validation and submit
+  };
+
+  return (
+    <Card.Root maxW="md" mx="auto">
+      <Card.Header>
+        <Card.Title asChild>
+          <Heading size="lg" color="fg">Sign in</Heading>
+        </Card.Title>
+        <Text color="fg.muted" mt="1">Use your email and password</Text>
+      </Card.Header>
+      <Separator />
+      <Card.Body>
+        <form onSubmit={handleSubmit}>
+          <Stack gap="4">
+            <Field.Root invalid={!!emailError}>
+              <Field.Label>Email</Field.Label>
+              <Input type="email" placeholder="you@example.com" />
+              <Field.ErrorText>{emailError}</Field.ErrorText>
+            </Field.Root>
+
+            <Field.Root invalid={!!passwordError}>
+              <Field.Label>Password</Field.Label>
+              <InputGroup
+                endElement={
+                  <IconButton
+                    type="button"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPassword((p) => !p)}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </IconButton>
+                }
+              >
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                />
+              </InputGroup>
+              <Field.ErrorText>{passwordError}</Field.ErrorText>
+            </Field.Root>
+
+            <Checkbox.Root>
+              <Checkbox.HiddenInput />
+              <Checkbox.Control />
+              <Checkbox.Label>Remember me</Checkbox.Label>
+            </Checkbox.Root>
+
+            <Button type="submit" colorPalette="brand" width="full">
+              Sign in
+            </Button>
+          </Stack>
+        </form>
+      </Card.Body>
+      <Separator />
+      <Card.Footer>
+        <Link href="#" color="fg.muted" textStyle="sm">
+          Forgot password?
+        </Link>
+      </Card.Footer>
+    </Card.Root>
+  );
+}
+`;
+}
 
 function generateComponentFiles(name: string, purpose: string) {
   const code = `import React from "react";
@@ -109,7 +209,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           {
             name: "gds_generate_component",
             description:
-              "Generates a React (TS) component using Chakra UI v3 + GDS. NEVER use v2 names: use Separator not Divider, Field.Root not FormControl, Table.Root not Table, colorPalette not colorScheme, icons as Button children not leftIcon. Returns files[] and the v3 reference (included in every response).",
+              "Generates a React (TS) component using Chakra UI v3 + GDS. Use for ANY GDS UI: dashboard, inbox, content page, card, layout, list, table, etc. For login/sign-in forms use gds_snippet_login_card instead. Before generating ANY GDS code in this chat, call gds_chakra_v3_guide first if you have not yet; then use ONLY v3 names (Separator not Divider, Field.Root not FormControl, Card.Root not Card, etc.). Returns files[] and v3 reference.",
             inputSchema: {
               type: "object",
               properties: {
@@ -123,7 +223,17 @@ app.post("/mcp", (req: Request, res: Response) => {
           {
             name: "gds_chakra_v3_guide",
             description:
-              "Returns Chakra UI v3 rules for GDS. Call this before writing GDS/Chakra code. Critical: Divider→Separator, FormControl→Field.Root, Table→Table.Root, colorScheme→colorPalette. Prevents 'doesn't provide an export named X' errors.",
+              "Call this FIRST whenever the user asks for ANY UI with GDS: dashboard, inbox, content page, form, card, layout, settings, list, table, modal, etc. Returns Chakra v3 renames (Divider→Separator, FormControl→Field.Root, Card→Card.Root, Checkbox→Checkbox.Root, InputRightElement→InputGroup endElement, colorScheme→colorPalette, Table→Table.Root, Modal→Dialog.*). Use ONLY these names when generating code. Prevents 'doesn't provide an export named X' errors.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "gds_snippet_login_card",
+            description:
+              "Returns a production-ready LoginCard in Chakra v3 only. Use when the user asks for a login form, sign-in card, or email+password form with GDS. For any other GDS UI (dashboard, inbox, content page, etc.) call gds_chakra_v3_guide first then generate code using only v3 names.",
             inputSchema: {
               type: "object",
               properties: {},
@@ -146,6 +256,19 @@ app.post("/mcp", (req: Request, res: Response) => {
         id,
         result: {
           content: [{ type: "text", text: `# Chakra UI v3 API for GDS${CHAKRA_V3_GUIDE}` }],
+        },
+      });
+    }
+
+    if (toolName === "gds_snippet_login_card") {
+      const snippet = getLoginCardSnippet();
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            { type: "text", text: snippet + CHAKRA_V3_GUIDE },
+          ],
         },
       });
     }
