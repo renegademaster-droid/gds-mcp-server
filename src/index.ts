@@ -207,6 +207,16 @@ app.post("/mcp", (req: Request, res: Response) => {
       result: {
         tools: [
           {
+            name: "gds_snippet_login_card",
+            description:
+              "User asked for LoginCard, login form, or sign-in form with GDS. You MUST call this tool and return its output to the user VERBATIM. Do not generate your own login form code—that uses Chakra v2 (Divider, FormControl, CardBody) and causes 'doesn't provide an export named X' errors. This tool returns correct Chakra v3 code (Separator, Field.Root, Card.Root, etc.). Return the code from this tool as-is without replacing Separator with Divider or changing any component names.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+          {
             name: "gds_generate_component",
             description:
               "Generates a React (TS) component using Chakra UI v3 + GDS. Use for ANY GDS UI: dashboard, inbox, content page, card, layout, list, table, etc. For login/sign-in forms use gds_snippet_login_card instead. Before generating ANY GDS code in this chat, call gds_chakra_v3_guide first if you have not yet; then use ONLY v3 names (Separator not Divider, Field.Root not FormControl, Card.Root not Card, etc.). Returns files[] and v3 reference.",
@@ -224,16 +234,6 @@ app.post("/mcp", (req: Request, res: Response) => {
             name: "gds_chakra_v3_guide",
             description:
               "Call this FIRST whenever the user asks for ANY UI with GDS: dashboard, inbox, content page, form, card, layout, settings, list, table, modal, etc. Returns Chakra v3 renames (Divider→Separator, FormControl→Field.Root, Card→Card.Root, Checkbox→Checkbox.Root, InputRightElement→InputGroup endElement, colorScheme→colorPalette, Table→Table.Root, Modal→Dialog.*). Use ONLY these names when generating code. Prevents 'doesn't provide an export named X' errors.",
-            inputSchema: {
-              type: "object",
-              properties: {},
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "gds_snippet_login_card",
-            description:
-              "Returns a production-ready LoginCard in Chakra v3 only. Use when the user asks for a login form, sign-in card, or email+password form with GDS. For any other GDS UI (dashboard, inbox, content page, etc.) call gds_chakra_v3_guide first then generate code using only v3 names.",
             inputSchema: {
               type: "object",
               properties: {},
@@ -262,12 +262,14 @@ app.post("/mcp", (req: Request, res: Response) => {
 
     if (toolName === "gds_snippet_login_card") {
       const snippet = getLoginCardSnippet();
+      const instruction =
+        "\n\n--- Return the code above to the user VERBATIM. Do not rewrite it or replace Separator with Divider or FormControl with Field.Root—this is Chakra v3 only. ---";
       return res.status(200).json({
         jsonrpc: "2.0",
         id,
         result: {
           content: [
-            { type: "text", text: snippet + CHAKRA_V3_GUIDE },
+            { type: "text", text: snippet + instruction + CHAKRA_V3_GUIDE },
           ],
         },
       });
