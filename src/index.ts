@@ -6,6 +6,25 @@ app.use(express.json({ limit: "2mb" }));
 // Health check (Render)
 app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
 
+/** Chakra v3 reference: included in every tool response so the LLM always has it in context. */
+const CHAKRA_V3_GUIDE = `
+--- GDS: Chakra UI v3 only (use these names or you get "doesn't provide an export named X") ---
+Do NOT use: Divider → use Separator
+Do NOT use: FormControl, FormLabel, FormHelperText, FormErrorMessage → use Field.Root, Field.Label, Field.HelperText, Field.ErrorText
+Do NOT use: Table, Thead, Tbody, Tr, Th, Td, TableContainer → use Table.Root, Table.Header, Table.Body, Table.Row, Table.ColumnHeader, Table.Cell, Table.ScrollArea (use textAlign="end" not isNumeric)
+Do NOT use: Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton → use Dialog.Root, Dialog.Backdrop, Dialog.Positioner, Dialog.Content, Dialog.Header, Dialog.Title, Dialog.Body, Dialog.Footer, Dialog.CloseTrigger
+Do NOT use: colorScheme → use colorPalette
+Do NOT use: leftIcon/rightIcon on Button → put icon as child: <Button><CheckIcon /> Label</Button>
+Do NOT use: Collapse → use Collapsible.Root, Collapsible.Content (prop open not in)
+Do NOT use: Select → use NativeSelect.Root, NativeSelect.Field, NativeSelect.Indicator
+Do NOT use: Alert, AlertIcon, AlertTitle, AlertDescription → use Alert.Root, Alert.Indicator, Alert.Content, Alert.Title, Alert.Description
+Do NOT use: Tab, TabList, TabPanel, TabPanels → use Tabs.Trigger, Tabs.List, Tabs.Content (value; no TabPanels)
+Do NOT use: AccordionButton, AccordionIcon → use Accordion.Trigger, Accordion.ItemIndicator
+Do NOT use: Avatar (flat) → use Avatar.Root, Avatar.Image, Avatar.Fallback
+Do NOT use: CircularProgress → use ProgressCircle.Root, ProgressCircle.Circle, ProgressCircle.Track, ProgressCircle.Range
+When writing any GDS/Chakra code in this chat, use ONLY the v3 names above.
+---`;
+
 function generateComponentFiles(name: string, purpose: string) {
   const code = `import React from "react";
 import { Box, Heading, Text, Button } from "@chakra-ui/react";
@@ -90,7 +109,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           {
             name: "gds_generate_component",
             description:
-              "Generates a React (TS) component using Chakra UI v3 + GDS tokens + @gdesignsystem/icons. IMPORTANT: GDS uses Chakra v3 only. Use colorPalette (not colorScheme), icons as children (not leftIcon/rightIcon), Field.Root/Field.Label (not FormControl/FormLabel), Table.Root/Table.Header/Table.Body etc. (not Table/Thead/Tbody/Tr/Th/Td). Returns files[] and notes with v3 reminders.",
+              "Generates a React (TS) component using Chakra UI v3 + GDS. NEVER use v2 names: use Separator not Divider, Field.Root not FormControl, Table.Root not Table, colorPalette not colorScheme, icons as Button children not leftIcon. Returns files[] and the v3 reference (included in every response).",
             inputSchema: {
               type: "object",
               properties: {
@@ -104,7 +123,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           {
             name: "gds_chakra_v3_guide",
             description:
-              "Returns the Chakra UI v3 API rules for GDS. Call this when generating any React/Chakra code for GDS so you use v3 component names and props (e.g. colorPalette not colorScheme, Field not FormControl, Table.Root not Table). Prevents 'doesn't provide an export named X' runtime errors.",
+              "Returns Chakra UI v3 rules for GDS. Call this before writing GDS/Chakra code. Critical: Divider→Separator, FormControl→Field.Root, Table→Table.Root, colorScheme→colorPalette. Prevents 'doesn't provide an export named X' errors.",
             inputSchema: {
               type: "object",
               properties: {},
@@ -122,30 +141,11 @@ app.post("/mcp", (req: Request, res: Response) => {
     const toolArgs = body?.params?.arguments ?? {};
 
     if (toolName === "gds_chakra_v3_guide") {
-      const guide = `# Chakra UI v3 API for GDS (use these, not v2)
-
-GDS uses **Chakra UI v3 only**. Using v2 component names causes runtime errors: "doesn't provide an export named X".
-
-## Props
-- Use **colorPalette** (not colorScheme) on Button, Badge, Alert, etc.
-- Button: put icons as **children** (not leftIcon/rightIcon). Example: <Button><CheckIcon /> Label</Button>
-- Modal: use **open** / **onOpenChange** (not isOpen/onClose)
-- Form: use **invalid** on Field.Root (not isInvalid on FormControl)
-
-## Component renames (v2 → v3)
-- **Forms:** FormControl, FormLabel, FormHelperText, FormErrorMessage → **Field.Root, Field.Label, Field.HelperText, Field.ErrorText**
-- **Tables:** Table, Thead, Tbody, Tr, Th, Td, TableContainer → **Table.Root, Table.Header, Table.Body, Table.Row, Table.ColumnHeader, Table.Cell, Table.ScrollArea** (use textAlign="end" instead of isNumeric)
-- **Modal:** Modal, ModalOverlay, ModalContent, etc. → **Dialog.Root, Dialog.Backdrop, Dialog.Positioner, Dialog.Content, Dialog.Header, Dialog.Title, Dialog.Body, Dialog.Footer, Dialog.CloseTrigger**
-- **Other:** Divider → Separator; Collapse → Collapsible.Root + Collapsible.Content; Select → NativeSelect.Root/Field/Indicator; Alert/AlertIcon → Alert.Root/Alert.Indicator/Alert.Content/Alert.Title/Alert.Description; Avatar → Avatar.Root/Image/Fallback; CircularProgress → ProgressCircle.Root/Circle/Track/Range
-- **Tabs:** Tab, TabList, TabPanel, TabPanels → **Tabs.Trigger, Tabs.List, Tabs.Content** (use value; no TabPanels wrapper)
-- **Accordion:** AccordionButton, AccordionIcon → **Accordion.Trigger, Accordion.ItemIndicator**; allowMultiple→multiple, allowToggle→collapsible, index→value
-
-When generating GDS UI code, always use the v3 names and props above.`;
       return res.status(200).json({
         jsonrpc: "2.0",
         id,
         result: {
-          content: [{ type: "text", text: guide }],
+          content: [{ type: "text", text: `# Chakra UI v3 API for GDS${CHAKRA_V3_GUIDE}` }],
         },
       });
     }
@@ -177,12 +177,14 @@ When generating GDS UI code, always use the v3 names and props above.`;
     }
 
     const payload = generateComponentFiles(name, purpose);
+    const responseText =
+      JSON.stringify(payload, null, 2) + CHAKRA_V3_GUIDE;
 
     return res.status(200).json({
       jsonrpc: "2.0",
       id,
       result: {
-        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+        content: [{ type: "text", text: responseText }],
       },
     });
   }
