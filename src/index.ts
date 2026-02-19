@@ -10,10 +10,13 @@ app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"))
  * PREPEND this to every tool response so the model sees it FIRST before generating any code.
  * From GDS_CHAKRA_V3_PROMPT.txt: NEVER import list + USE THESE INSTEAD + login card example.
  */
-const GDS_CHAKRA_V3_PROMPT = `GDS uses Chakra UI v3 only. You MUST NOT import these from @chakra-ui/react (they do not exist in v3 and cause "doesn't provide an export named X"):
+const GDS_CHAKRA_V3_PROMPT = `CRITICAL — apply even when the user does NOT say "v3":
+  GDS = Chakra UI v3 only. When the user says "create login card", "login card", "sign in", or any UI with GDS, you MUST use v3 component names. Do not import v2 names. For every v2 name there is a v3 replacement below — use it (e.g. Divider → Separator, FormControl → Field.Root). Replace, never drop: if you would use Divider, use Separator; if you would use FormControl/FormLabel, use Field.Root/Field.Label; if you would use Card/CardBody, use Card.Root/Card.Body.
+
+NEVER import these from @chakra-ui/react (they do not exist in v3; cause "doesn't provide an export named X"):
   Divider, Card, CardHeader, CardBody, CardFooter, FormControl, FormLabel, FormErrorMessage, FormHelperText, Table, Thead, Tbody, Tr, Th, Td, TableContainer, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton, Tab, TabList, TabPanel, TabPanels, Select, Alert, AlertIcon, AlertTitle, AlertDescription, Collapse
 
-USE THESE INSTEAD (Chakra v3):
+USE THESE INSTEAD (Chakra v3) — replace every v2 usage with these:
   Divider → Separator
   Card, CardHeader, CardBody, CardFooter → Card.Root, Card.Header, Card.Body, Card.Footer (and Card.Title, Card.Description)
   FormControl, FormLabel, FormErrorMessage, FormHelperText → Field.Root, Field.Label, Field.ErrorText, Field.HelperText
@@ -67,6 +70,8 @@ export function LoginCard() {
 }
 
 --- For any login/form card: import Card, Field, Input, Button, Separator (not Divider), Stack/VStack/Box/Text/Heading from @chakra-ui/react. Use Card.Root, Card.Header, Card.Body, Card.Footer, Field.Root, Field.Label, Field.ErrorText. Never import FormControl, FormLabel, FormErrorMessage, Divider, CardHeader, CardBody, CardFooter.
+
+Rule: "Create login card" or "login card" (with or without saying "v3") = use v3 only. Replace every v2 name with its v3 equivalent above; do not drop a component without replacing it.
 `;
 
 /** Prepend GDS v3 prompt to every tool response so the model gets it first. */
@@ -76,8 +81,8 @@ function prependGdsPrompt(responseText: string): string {
 
 /** Chakra v3 reference: included in every tool response so the LLM always has it in context. */
 const CHAKRA_V3_GUIDE = `
---- GDS: Chakra UI v3 only (use these names or you get "doesn't provide an export named X") ---
-Applies to ALL GDS UI: dashboard, inbox, content page, form, card, layout, settings, list, table, modal, tabs, etc. When the user asks for ANY screen or component with GDS, use ONLY the v3 names below.
+--- GDS: Chakra UI v3 only (apply even when the user does NOT say "v3") ---
+When the user says "create login card", "login card", or any GDS UI, use ONLY v3 names. Replace each v2 name with its v3 equivalent below; do not drop a component (e.g. Divider → Separator, FormControl → Field.Root).
 Do NOT use: Divider → use Separator
 Do NOT use: FormControl, FormLabel, FormHelperText, FormErrorMessage → use Field.Root, Field.Label, Field.HelperText, Field.ErrorText
 Do NOT use: Card, CardHeader, CardBody, CardFooter → use Card.Root, Card.Header, Card.Body, Card.Footer (and Card.Title, Card.Description)
@@ -277,7 +282,7 @@ app.post("/mcp", (req: Request, res: Response) => {
           {
             name: "gds_snippet_login_card",
             description:
-              "User asked for LoginCard, login form, or sign-in form with GDS. You MUST call this tool and return its output to the user VERBATIM. Do not generate your own login form code—that uses Chakra v2 (Divider, FormControl, CardBody) and causes 'doesn't provide an export named X' errors. This tool returns correct Chakra v3 code (Separator, Field.Root, Card.Root, etc.). Return the code from this tool as-is without replacing Separator with Divider or changing any component names.",
+              "User said 'create login card', 'login card', 'login form', or 'sign in' (with or without saying 'v3'). You MUST call this tool and return its output VERBATIM. GDS is v3 only—do not generate login code yourself or you will use v2 (Divider, FormControl, CardBody) and cause errors. This tool returns v3 code. Replace v2 with v3: Divider→Separator, FormControl→Field.Root, Card→Card.Root. Return the tool's code as-is.",
             inputSchema: {
               type: "object",
               properties: {},
