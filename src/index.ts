@@ -79,6 +79,11 @@ function prependGdsPrompt(responseText: string): string {
   return GDS_CHAKRA_V3_PROMPT + "\n\n--- Response ---\n\n" + responseText;
 }
 
+// Why "Divider" still appears: the model only sees our prompt when it *calls* a tool. If it
+// generates code without calling gds_snippet_login_card or gds_chakra_v3_guide, our server
+// is never used. We expose the prompt as an MCP resource (gds://chakra-v3-prompt) so clients
+// can load it at conversation start; then "create login card" is generated with v3 rules in context.
+
 /** Chakra v3 reference: included in every tool response so the LLM always has it in context. */
 const CHAKRA_V3_GUIDE = `
 --- GDS: Chakra UI v3 only (apply even when the user does NOT say "v3") ---
@@ -267,8 +272,53 @@ app.post("/mcp", (req: Request, res: Response) => {
         serverInfo: { name: "gds-mcp-server", version: "0.2.0" },
         capabilities: {
           tools: {},
+          resources: {},
         },
       },
+    });
+  }
+
+  // 1b) resources/list — expose Chakra v3 prompt so clients can load it BEFORE the model generates (avoids Divider/FormControl)
+  const GDS_PROMPT_URI = "gds://chakra-v3-prompt";
+  if (method === "resources/list") {
+    return res.status(200).json({
+      jsonrpc: "2.0",
+      id,
+      result: {
+        resources: [
+          {
+            uri: GDS_PROMPT_URI,
+            name: "GDS Chakra v3 prompt",
+            description: "NEVER import Divider/FormControl/Card/etc. USE Separator, Field.Root, Card.Root. Load this first when the user will write GDS/Chakra code so the model uses v3 only.",
+            mimeType: "text/plain",
+          },
+        ],
+      },
+    });
+  }
+
+  // 1c) resources/read — return full v3 prompt so client can inject it at conversation start
+  if (method === "resources/read") {
+    const uri = body?.params?.uri;
+    if (uri === GDS_PROMPT_URI) {
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          contents: [
+            {
+              uri: GDS_PROMPT_URI,
+              mimeType: "text/plain",
+              text: GDS_CHAKRA_V3_PROMPT,
+            },
+          ],
+        },
+      });
+    }
+    return res.status(200).json({
+      jsonrpc: "2.0",
+      id,
+      error: { code: -32602, message: `Unknown resource: ${uri}` },
     });
   }
 
