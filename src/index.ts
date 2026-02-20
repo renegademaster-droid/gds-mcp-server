@@ -13,9 +13,13 @@ app.get("/mcp", (req: Request, res: Response) => {
   res.status(200).json({
     service: "gds-mcp-server",
     message: "MCP endpoint. Use POST /mcp with JSON-RPC (initialize, tools/list, tools/call).",
-    getEndpoints: "If you cannot do POST, open these URLs with GET to get GDS (Chakra v3) content:",
+    targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons. Not React Native or Figma.",
+    getEndpoints: "Open these URLs with GET to get GDS content:",
     guide: `${base}/mcp/guide`,
     tools: `${base}/mcp/tools`,
+    tokens: `${base}/mcp/tokens`,
+    components: `${base}/mcp/components`,
+    platform: `${base}/mcp/platform`,
     snippetLogin: `${base}/mcp/snippet/login`,
     generate: `${base}/mcp/generate?prompt=YOUR_PROMPT (URL-encode the user request)`,
   });
@@ -84,6 +88,89 @@ app.get("/mcp/generate", (req: Request, res: Response) => {
       CHAKRA_V3_GUIDE;
   }
   res.type("text/plain").status(200).send(body);
+});
+
+// GET /mcp/tokens - GDS semantic tokens (use as prop values: color="fg", bg="bg.default")
+app.get("/mcp/tokens", (_req: Request, res: Response) => {
+  const tokens = {
+    platform: "React web, Chakra UI v3. Tokens come from @gdesignsystem/theme via GDSProvider.",
+    usage: "Use as component props: color='fg', bg='bg.default', colorPalette='brand', borderColor='border.muted'.",
+    semantic: {
+      colors: [
+        "fg",
+        "fg.muted",
+        "fg.subtle",
+        "bg.default",
+        "bg.subtle",
+        "bg.muted",
+        "border.default",
+        "border.muted",
+        "brand",
+        "brand.muted",
+        "brand.subtle",
+      ],
+      spacing: ["1", "2", "3", "4", "5", "6", "8", "10", "12", "16", "20", "24"],
+      radii: ["none", "sm", "md", "lg", "xl", "2xl", "full"],
+    },
+    examples: [
+      "color='fg'",
+      "color='fg.muted'",
+      "bg='bg.default'",
+      "bg='bg.subtle'",
+      "borderColor='border.muted'",
+      "colorPalette='brand' (on Button, Badge, etc.)",
+    ],
+  };
+  res.status(200).json(tokens);
+});
+
+// GET /mcp/components - Chakra v3 component API (props) for GDS
+app.get("/mcp/components", (_req: Request, res: Response) => {
+  const components = {
+    platform: "Chakra UI v3. Import from @chakra-ui/react. Wrap app with GDSProvider from @gdesignsystem/react.",
+    components: {
+      Box: { props: ["color", "bg", "p", "px", "py", "m", "mt", "mb", "borderWidth", "borderColor", "borderRadius", "gap"] },
+      Button: { props: ["colorPalette", "variant", "size", "disabled", "loading"], note: "Use colorPalette not colorScheme. Icons as children." },
+      "Card.Root": { props: ["maxW", "variant"], children: "Card.Header, Card.Body, Card.Footer" },
+      "Card.Header": {},
+      "Card.Body": {},
+      "Card.Footer": {},
+      "Card.Title": { props: ["asChild"] },
+      "Card.Description": {},
+      Separator: { props: ["orientation"], note: "Not Divider" },
+      "Field.Root": { props: ["invalid", "disabled"], children: "Field.Label, Field.HelperText, Field.ErrorText" },
+      "Field.Label": {},
+      "Field.HelperText": {},
+      "Field.ErrorText": {},
+      Input: { props: ["type", "placeholder", "disabled", "size"] },
+      "InputGroup": { props: ["startElement", "endElement"], note: "Not InputRightElement; pass React node to endElement" },
+      "Checkbox.Root": { props: ["checked", "onCheckedChange", "disabled"], children: "Checkbox.HiddenInput, Checkbox.Control, Checkbox.Label" },
+      "Checkbox.Control": {},
+      "Checkbox.Label": {},
+      "Checkbox.HiddenInput": {},
+      Text: { props: ["color", "fontSize", "fontWeight", "textStyle"] },
+      Heading: { props: ["size", "color"] },
+      Stack: { props: ["gap", "direction", "align", "wrap"] },
+      VStack: { props: ["gap", "align"] },
+      HStack: { props: ["gap", "align"] },
+      Link: { props: ["href", "color", "colorPalette"] },
+      "Table.Root": { props: ["size"], children: "Table.Header, Table.Body, Table.Row, Table.ColumnHeader, Table.Cell, Table.ScrollArea" },
+      "Dialog.Root": { props: ["open", "onOpenChange"], children: "Dialog.Backdrop, Dialog.Content, Dialog.Header, Dialog.Body, Dialog.Footer, Dialog.CloseTrigger" },
+      "Tabs.Root": { props: ["value", "onValueChange"], children: "Tabs.List, Tabs.Trigger, Tabs.Content" },
+    },
+  };
+  res.status(200).json(components);
+});
+
+// GET /mcp/platform - target platform and stack for GDS
+app.get("/mcp/platform", (_req: Request, res: Response) => {
+  res.status(200).json({
+    target: "React web (browser)",
+    stack: ["React 18+", "Chakra UI v3", "Emotion", "@gdesignsystem/react", "@gdesignsystem/theme", "@gdesignsystem/icons"],
+    notSupported: ["React Native", "Figma", "Vue", "Angular"],
+    install: "pnpm add @gdesignsystem/react @gdesignsystem/theme @gdesignsystem/icons @chakra-ui/react @emotion/react react react-dom",
+    setup: "Wrap root with <GDSProvider>. Use semantic tokens (fg, bg.default, colorPalette='brand'). Import Chakra components from @chakra-ui/react.",
+  });
 });
 
 /**
