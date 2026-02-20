@@ -21,7 +21,7 @@ app.get("/mcp", (req: Request, res: Response) => {
   const generateUrl = (prompt: string) => `${base}/mcp/generate?prompt=${encodeURIComponent(prompt)}`;
   res.status(200).json({
     service: "gds-mcp-server",
-    note: "No POST needed. This response already contains the tools list below.",
+    note: "No POST needed. You do not need MCP connected to your toolchain. Open the GET URLs (e.g. openWithGet.loginCardCode, openWithGet.chakraV3Rules), read the content, and use it as the source for your answers.",
     targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons. NOT React Native, NOT Figma.",
     instructionsForAssistant: [
       "GDS is always React web (Chakra UI v3). When the user asks for a view/screen/form with GDS (e.g. 'tee signin näkymä GDS:llä', 'create login with GDS'), return a full React/TSX code example in one file. Do not return only a structure, copy list, or spec.",
