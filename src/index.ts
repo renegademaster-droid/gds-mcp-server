@@ -18,21 +18,28 @@ const MCP_TOOLS_LIST = [
 // GET /mcp: one-shot info for clients that cannot POST — tools list + GET URLs (no POST needed)
 app.get("/mcp", (req: Request, res: Response) => {
   const base = `${req.protocol}://${req.get("host") || "gds-mcp-server.onrender.com"}`;
+  const generateUrl = (prompt: string) => `${base}/mcp/generate?prompt=${encodeURIComponent(prompt)}`;
   res.status(200).json({
     service: "gds-mcp-server",
-    note: "No POST needed. This response already contains the tools list below. For more (tokens, component API, code), open the GET URLs with your browser/GET.",
-    targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons.",
+    note: "No POST needed. This response already contains the tools list below.",
+    targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons. NOT React Native, NOT Figma.",
+    instructionsForAssistant: [
+      "GDS is always React web (Chakra UI v3). When the user asks for a view/screen/form with GDS (e.g. 'tee signin näkymä GDS:llä', 'create login with GDS'), return a full React/TSX code example in one file. Do not return only a structure, copy list, or spec.",
+      "For sign-in / login / kirjaudu: open this URL with GET to get ready React code, then show that code to the user as your main answer: " + base + "/mcp/snippet/login . Or for a custom prompt: " + base + "/mcp/generate?prompt= signin (URL-encode the user request).",
+      "Do not ask 'React Native or web?' — GDS is web. Do not reply with only layout/rakenne or component names; reply with runnable React code.",
+    ],
     toolsList: MCP_TOOLS_LIST,
     toolNames: MCP_TOOLS_LIST.map((t) => t.name),
     openWithGet: {
-      toolsListAgain: `${base}/mcp/tools`,
-      tokensAndStyles: `${base}/mcp/tokens`,
-      componentApi: `${base}/mcp/components`,
-      platformAndSetup: `${base}/mcp/platform`,
-      chakraV3Rules: `${base}/mcp/guide`,
       loginCardCode: `${base}/mcp/snippet/login`,
       generateForPrompt: `${base}/mcp/generate?prompt=USER_REQUEST`,
+      chakraV3Rules: `${base}/mcp/guide`,
+      componentApi: `${base}/mcp/components`,
+      tokensAndStyles: `${base}/mcp/tokens`,
+      platformAndSetup: `${base}/mcp/platform`,
+      toolsListAgain: `${base}/mcp/tools`,
     },
+    exampleSigninRequest: "User says 'tee helppo signin näkymä GDS:llä' -> open " + generateUrl("signin näkymä GDS") + " with GET, then show the returned React code to the user.",
   });
 });
 
