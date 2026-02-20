@@ -13,7 +13,11 @@ GDS = aina React web + Chakra UI v3 + GDSProvider. Älä kysy "web vai React Nat
 
 # Tavallinen GPT Chat (connector asennettuna)
 
-Kun olet liittänyt gds-mcp-server.onrender.com/mcp connectorina: palvelin palauttaa kentän "forChatGPTConnector", jossa ohje hakea GDS-sisältö heti kun käyttäjä pyytää GDS-toteutusta. Jos tavallinen chat ei silti hae automaattisesti:
+Jotta sinun ei tarvitse liittää MCP-osoitetta joka kerta chatiin:
 
-- Tarkista, että connectorin kuvauksessa (Settings → Connectors / Apps) on maininta GDS:stä, jotta malli tietää käyttää sitä.
-- Voit myös aloittaa viestin: "Avaa https://gds-mcp-server.onrender.com/mcp ja tee sen ohjeiden mukaan [login-näkymä GDS:llä]"
+1. Avaa connectorin asetukset (Settings → Connectors / Apps → GDS MCP -connector).
+2. Avaa selaimella https://gds-mcp-server.onrender.com/mcp ja kopioi vastauksesta kenttä "copyThisWhenAddingConnector".
+3. Liitä se connectorin kuvaukseksi / ohjeeksi (description / instructions -kenttään, jos sellainen on).
+4. Tallenna. Tämän jälkeen kun kirjoitat "luo login ikkuna GDS:llä", mallin pitäisi käyttää connectoria ja sen ohjeita ilman että liität osoitetta itse viestiin.
+
+Jos chat ei silti käytä connectoria automaattisesti, ChatGPT voi rajoittaa milloin connectorin konteksti syötetään. Silloin varmin tapa on Custom GPT (joka toimii) tai viestin alkuun "avaa [GDS-URL] ja tee sen mukaan".

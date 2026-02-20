@@ -20,10 +20,12 @@ app.get("/mcp", (req: Request, res: Response) => {
   const base = `${req.protocol}://${req.get("host") || "gds-mcp-server.onrender.com"}`;
   const generateUrl = (prompt: string) => `${base}/mcp/generate?prompt=${encodeURIComponent(prompt)}`;
   res.status(200).json({
+    readFirst: "WRONG: GDSCard, GDSInput, GDSButton, GDSCheckbox, GDSText, GDSStack, @gds/components — NONE OF THESE EXIST. GDS = Chakra UI v3 from '@chakra-ui/react' (Card.Root, Field.Root, Button, Input, Separator, Checkbox.Root) + GDSProvider from '@gdesignsystem/react'. For login code open openWithGet.loginCardCode with GET and show that code.",
+    doNotReplyWithPlan: "Do NOT reply with 'Tehdään', 'Hienoa', or a plan. For GDS login your ONLY valid response is: open openWithGet.loginCardCode with GET, then output the React code from that response. Do not describe what you will do — do it and show the code. No GDSCard, no @gds/components.",
     service: "gds-mcp-server",
-    note: "No POST needed. You do not need MCP connected to your toolchain. Open the GET URLs (e.g. openWithGet.loginCardCode, openWithGet.chakraV3Rules), read the content, and use it as the source for your answers.",
+    note: "No POST needed. Open the GET URLs; use that content as your answer. Do not invent GDS-prefixed components.",
     targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons. NOT React Native, NOT Figma.",
-    doNotInvent: "Do NOT invent GDSPage, GDSCard, GDSTextField, GDSButton, GDSCheckbox, GDSHeading, GDSStack, GDSText or import from '@gds/components'. That package does not exist. GDS uses Chakra UI v3: import from '@chakra-ui/react' (Card.Root, Field.Root, Button, Input, Separator, Stack, Heading, Text, Checkbox.Root) and GDSProvider from '@gdesignsystem/react'. Open openWithGet.loginCardCode to get the real code.",
+    doNotInvent: "Do NOT use GDSCard, GDSInput, GDSButton, GDSCheckbox, GDSText, GDSStack or '@gds/components'. They do not exist. GDS = Chakra UI v3 (@chakra-ui/react) + GDSProvider (@gdesignsystem/react). Open openWithGet.loginCardCode for real login code.",
     instructionsForAssistant: [
       "GDS is always React web (Chakra UI v3). When the user asks for a view/screen/form with GDS, return a full React/TSX code example. Do not return only a structure or spec.",
       "Do NOT use GDSPage, GDSCard, GDSTextField, GDSButton, GDSCheckbox, GDSHeading, GDSStack, GDSText or '@gds/components' — they do not exist. GDS = Chakra from '@chakra-ui/react' (Card.Root, Field.Root, Button, Input, Separator, Stack, Checkbox.Root) + GDSProvider from '@gdesignsystem/react'. Get real code by opening openWithGet.loginCardCode.",
@@ -33,11 +35,12 @@ app.get("/mcp", (req: Request, res: Response) => {
     ],
     realImportsExample: "import { Card, Field, Button, Input, Separator, Stack, Text, Heading } from '@chakra-ui/react'; import { GDSProvider } from '@gdesignsystem/react';",
     whenUserSaysGdsLogin: "Your first action: open " + base + "/mcp/snippet/login with GET. Then show the React code from that response to the user. Do this before any other suggestion.",
-    forChatGPTConnector: "You are reading this because the user has the GDS MCP server as connector. When they ask for GDS-based UI (login, signin, kirjaudu, lomake, 'GDS:llä'): immediately open openWithGet.loginCardCode for login/signin, or openWithGet.generateForPrompt with their request for other UI. Use the fetched content as your answer. Do not suggest alternatives before fetching.",
+    forChatGPTConnector: "You are reading this because the user has the GDS MCP server as connector. When they ask for GDS login/signin/kirjaudu: open openWithGet.loginCardCode with GET and output the React code from that response. Your answer must BE the code, not 'Tehdään' or a plan. Do not describe — fetch and show the code. No GDSCard, no @gds/components.",
     toolsList: MCP_TOOLS_LIST,
     toolNames: MCP_TOOLS_LIST.map((t) => t.name),
     openWithGet: {
       loginCardCode: `${base}/mcp/snippet/login`,
+      wrongVsRight: `${base}/mcp/wrong`,
       generateForPrompt: `${base}/mcp/generate?prompt=USER_REQUEST`,
       chakraV3Rules: `${base}/mcp/guide`,
       componentApi: `${base}/mcp/components`,
@@ -46,7 +49,20 @@ app.get("/mcp", (req: Request, res: Response) => {
       toolsListAgain: `${base}/mcp/tools`,
     },
     exampleSigninRequest: "User says 'tee helppo signin näkymä GDS:llä' -> open " + generateUrl("signin näkymä GDS") + " with GET, then show the returned React code to the user.",
+    copyThisWhenAddingConnector: "When the user asks for GDS login/signin/kirjaudu: open " + base + "/mcp/snippet/login with GET and output the React code from the response. Your answer must BE the code, not 'Tehdään' or a plan. For other GDS UI open " + base + "/mcp and follow openWithGet. Do not use GDSCard, GDSInput, @gds/components. GDS = Chakra UI v3 (@chakra-ui/react) + GDSProvider (@gdesignsystem/react).",
   });
+});
+
+// GET /mcp/wrong — plain text: correct GDS API (user can open or paste into chat so model sees it)
+app.get("/mcp/wrong", (req: Request, res: Response) => {
+  const base = `${req.protocol}://${req.get("host") || "gds-mcp-server.onrender.com"}`;
+  const text = [
+    "GDS ei käytä GDSCard, GDSInput, GDSButton, GDSCheckbox, GDSText, GDSStack eikä pakettia @gds/components — niitä ei ole olemassa.",
+    "GDS = React web + Chakra UI v3: import @chakra-ui/react (Card.Root, Field.Root, Button, Input, Separator, Checkbox.Root) + GDSProvider @gdesignsystem/react.",
+    "Login-koodi (valmis): " + base + "/mcp/snippet/login",
+    "Ohjeet ja työkalulista: " + base + "/mcp",
+  ].join("\n\n");
+  res.type("text/plain").status(200).send(text);
 });
 
 // GET /mcp/guide — Chakra v3 rules + login example (for clients that cannot POST)
