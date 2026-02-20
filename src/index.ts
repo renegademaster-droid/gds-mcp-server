@@ -24,10 +24,13 @@ app.get("/mcp", (req: Request, res: Response) => {
     note: "No POST needed. You do not need MCP connected to your toolchain. Open the GET URLs (e.g. openWithGet.loginCardCode, openWithGet.chakraV3Rules), read the content, and use it as the source for your answers.",
     targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons. NOT React Native, NOT Figma.",
     instructionsForAssistant: [
-      "GDS is always React web (Chakra UI v3). When the user asks for a view/screen/form with GDS (e.g. 'tee signin näkymä GDS:llä', 'create login with GDS'), return a full React/TSX code example in one file. Do not return only a structure, copy list, or spec.",
-      "For sign-in / login / kirjaudu: open this URL with GET to get ready React code, then show that code to the user as your main answer: " + base + "/mcp/snippet/login . Or for a custom prompt: " + base + "/mcp/generate?prompt= signin (URL-encode the user request).",
-      "Do not ask 'React Native or web?' — GDS is web. Do not reply with only layout/rakenne or component names; reply with runnable React code.",
+      "GDS is always React web (Chakra UI v3). When the user asks for a view/screen/form with GDS, return a full React/TSX code example. Do not return only a structure or spec.",
+      "MANDATORY when user asks for login/signin/kirjaudu with GDS: (1) Open openWithGet.loginCardCode below with GET. (2) In the response you will see React code after '--- Login card'. (3) Show that code to the user as your main answer. Do not suggest other approaches first; fetch the snippet and show it.",
+      "For other GDS UI (dashboard, form): open openWithGet.generateForPrompt with the user's request URL-encoded in the prompt parameter, then use the returned content to write your answer.",
+      "Do not ask 'React Native or web?' — GDS is web. Reply with runnable React code, not only layout or component names.",
     ],
+    whenUserSaysGdsLogin: "Your first action: open " + base + "/mcp/snippet/login with GET. Then show the React code from that response to the user. Do this before any other suggestion.",
+    forChatGPTConnector: "You are reading this because the user has the GDS MCP server as connector. When they ask for GDS-based UI (login, signin, kirjaudu, lomake, 'GDS:llä'): immediately open openWithGet.loginCardCode for login/signin, or openWithGet.generateForPrompt with their request for other UI. Use the fetched content as your answer. Do not suggest alternatives before fetching.",
     toolsList: MCP_TOOLS_LIST,
     toolNames: MCP_TOOLS_LIST.map((t) => t.name),
     openWithGet: {
