@@ -7,12 +7,83 @@ app.use(express.json({ limit: "2mb" }));
 app.get("/", (_req: Request, res: Response) => res.status(200).send("ok"));
 app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
 
-// GET /mcp: some clients "open" the URL with GET; return 200 so connectivity check succeeds
-app.get("/mcp", (_req: Request, res: Response) => {
+// GET /mcp: some clients (e.g. ChatGPT) can only do GET — list GET endpoints they can use
+app.get("/mcp", (req: Request, res: Response) => {
+  const base = `${req.protocol}://${req.get("host") || "gds-mcp-server.onrender.com"}`;
   res.status(200).json({
     service: "gds-mcp-server",
     message: "MCP endpoint. Use POST /mcp with JSON-RPC (initialize, tools/list, tools/call).",
+    getEndpoints: "If you cannot do POST, open these URLs with GET to get GDS (Chakra v3) content:",
+    guide: `${base}/mcp/guide`,
+    tools: `${base}/mcp/tools`,
+    snippetLogin: `${base}/mcp/snippet/login`,
+    generate: `${base}/mcp/generate?prompt=YOUR_PROMPT (URL-encode the user request)`,
   });
+});
+
+// GET /mcp/guide — Chakra v3 rules + login example (for clients that cannot POST)
+app.get("/mcp/guide", (_req: Request, res: Response) => {
+  res.type("text/plain").status(200).send(GDS_CHAKRA_V3_PROMPT);
+});
+
+// GET /mcp/tools — tools list as JSON (name, description, inputSchema)
+app.get("/mcp/tools", (_req: Request, res: Response) => {
+  const tools = [
+    {
+      name: "gds_generate_from_prompt",
+      description:
+        "Call with the user's EXACT prompt. Returns GDS React (Chakra v3) code. Show the response to the user as the main answer.",
+      inputSchema: { prompt: "string (user request)" },
+    },
+    {
+      name: "gds_snippet_login_card",
+      description: "Returns ready LoginCard code (Chakra v3). Use for login/sign-in requests. Return as-is.",
+      inputSchema: {},
+    },
+    {
+      name: "gds_generate_component",
+      description: "Generates a component (name + purpose). Chakra v3 only.",
+      inputSchema: { name: "string", purpose: "string" },
+    },
+    {
+      name: "gds_chakra_v3_guide",
+      description: "Returns Chakra v3 renames (Divider->Separator, FormControl->Field.Root, etc.). Call first for any GDS UI.",
+      inputSchema: {},
+    },
+  ];
+  res.status(200).json({ tools });
+});
+
+// GET /mcp/snippet/login — ready login card code (Chakra v3)
+app.get("/mcp/snippet/login", (_req: Request, res: Response) => {
+  res.type("text/plain").status(200).send(GDS_CHAKRA_V3_PROMPT + "\n\n--- Login card (use this code) ---\n\n" + getLoginCardSnippet());
+});
+
+// GET /mcp/generate?prompt=... — same as gds_generate_from_prompt, for clients that cannot POST
+app.get("/mcp/generate", (req: Request, res: Response) => {
+  const prompt = typeof req.query.prompt === "string" ? req.query.prompt.trim() : "";
+  const lower = prompt.toLowerCase();
+  const isLogin =
+    lower.includes("login") ||
+    lower.includes("sign in") ||
+    lower.includes("signin") ||
+    lower.includes("sign-in") ||
+    lower.includes("kirjaudu") ||
+    lower.includes("sisäänkirjautuminen") ||
+    lower.includes("log in");
+
+  let body: string;
+  if (isLogin && prompt.length > 0) {
+    body = GDS_CHAKRA_V3_PROMPT + "\n\n--- Login card ---\n\n" + getLoginCardSnippet();
+  } else {
+    body =
+      GDS_CHAKRA_V3_PROMPT +
+      "\n\n--- Generate the following with GDS (Chakra v3 only). User request: " +
+      (prompt || "(no prompt)") +
+      "\n\n--- Return React/TSX code using only v3 components above. ---" +
+      CHAKRA_V3_GUIDE;
+  }
+  res.type("text/plain").status(200).send(body);
 });
 
 /**
