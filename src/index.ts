@@ -19,10 +19,11 @@ app.get("/mcp", (_req: Request, res: Response) => {
  * PREPEND this to every tool response so the model sees it FIRST before generating any code.
  * From GDS_CHAKRA_V3_PROMPT.txt: NEVER import list + USE THESE INSTEAD + login card example.
  */
-const GDS_CHAKRA_V3_PROMPT = `CRITICAL — apply even when the user does NOT say "v3":
-  GDS = Chakra UI v3 only. When the user says "create login card", "login card", "sign in", or any UI with GDS, you MUST use v3 component names. Do not import v2 names. For every v2 name there is a v3 replacement below — use it (e.g. Divider → Separator, FormControl → Field.Root). Replace, never drop: if you would use Divider, use Separator; if you would use FormControl/FormLabel, use Field.Root/Field.Label; if you would use Card/CardBody, use Card.Root/Card.Body.
+const GDS_CHAKRA_V3_PROMPT = `CRITICAL — GDS = Chakra UI v3 ONLY. Apply even when the user does NOT say "v3".
+  If you output Divider, FormControl, Card, CardHeader, CardBody, CardFooter, FormLabel, FormErrorMessage, FormHelperText, or any v2 name below, the code will FAIL at runtime ("doesn't provide an export named X"). Use ONLY the v3 names from "USE THESE INSTEAD".
+  Replace every v2 name with its v3 equivalent (e.g. Divider → Separator, FormControl → Field.Root, Card → Card.Root). Do not drop a component without replacing it.
 
-NEVER import these from @chakra-ui/react (they do not exist in v3; cause "doesn't provide an export named X"):
+NEVER import these from @chakra-ui/react (they do not exist in v3):
   Divider, Card, CardHeader, CardBody, CardFooter, FormControl, FormLabel, FormErrorMessage, FormHelperText, Table, Thead, Tbody, Tr, Th, Td, TableContainer, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton, Tab, TabList, TabPanel, TabPanels, Select, Alert, AlertIcon, AlertTitle, AlertDescription, Collapse
 
 USE THESE INSTEAD (Chakra v3) — replace every v2 usage with these:
@@ -339,6 +340,22 @@ app.post("/mcp", (req: Request, res: Response) => {
       result: {
         tools: [
           {
+            name: "gds_generate_from_prompt",
+            description:
+              "Call this with the user's EXACT prompt/request (e.g. 'create login card', 'tee lomake X', 'dashboard'). Returns GDS-compliant React (Chakra v3) code. You MUST show the tool's response to the user as the main answer so they get the React implementation—do not replace it with something else. For login/sign-in the tool returns ready code; for other requests it returns the v3 guide and the request so you generate the code using only v3 components.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                prompt: {
+                  type: "string",
+                  description: "The user's exact request, e.g. 'create login card', 'tee dashboard GDS:llä', 'lomake sähköpostilla ja salasanalla'",
+                },
+              },
+              required: ["prompt"],
+              additionalProperties: false,
+            },
+          },
+          {
             name: "gds_snippet_login_card",
             description:
               "User said 'create login card', 'login card', 'login form', or 'sign in' (with or without saying 'v3'). You MUST call this tool and return its output VERBATIM. GDS is v3 only—do not generate login code yourself or you will use v2 (Divider, FormControl, CardBody) and cause errors. This tool returns v3 code. Replace v2 with v3: Divider→Separator, FormControl→Field.Root, Card→Card.Root. Return the tool's code as-is.",
@@ -381,6 +398,39 @@ app.post("/mcp", (req: Request, res: Response) => {
   if (method === "tools/call") {
     const toolName = body?.params?.name;
     const toolArgs = body?.params?.arguments ?? {};
+
+    if (toolName === "gds_generate_from_prompt") {
+      const rawPrompt = toolArgs?.prompt;
+      const prompt = typeof rawPrompt === "string" ? rawPrompt.trim() : "";
+      const lower = prompt.toLowerCase();
+      const isLogin =
+        lower.includes("login") ||
+        lower.includes("sign in") ||
+        lower.includes("signin") ||
+        lower.includes("sign-in") ||
+        lower.includes("kirjaudu") ||
+        lower.includes("sisäänkirjautuminen") ||
+        lower.includes("log in");
+
+      let bodyText: string;
+      if (isLogin && prompt.length > 0) {
+        bodyText =
+          getLoginCardSnippet() +
+          "\n\n--- Return this code to the user as the main answer. Do not replace with other code. ---" +
+          CHAKRA_V3_GUIDE;
+      } else {
+        bodyText =
+          `--- Generate the following with GDS (Chakra v3 only). Use ONLY the component names from the guide above (Separator not Divider, Field.Root not FormControl, Card.Root not Card, etc.). ---\n\nUser request: ${prompt || "(no prompt)"}\n\n--- Now return the React/TSX code that fulfills this request. Use only Chakra v3 components. ---` +
+          CHAKRA_V3_GUIDE;
+      }
+      return res.status(200).json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [{ type: "text", text: prependGdsPrompt(bodyText) }],
+        },
+      });
+    }
 
     if (toolName === "gds_chakra_v3_guide") {
       return res.status(200).json({
