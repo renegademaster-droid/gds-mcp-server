@@ -7,15 +7,25 @@ app.use(express.json({ limit: "2mb" }));
 app.get("/", (_req: Request, res: Response) => res.status(200).send("ok"));
 app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
 
-// GET /mcp: list GET endpoints so clients that cannot POST can still get GDS components and styles
+// Tools list (same as MCP tools/list) — reused in GET /mcp and GET /mcp/tools
+const MCP_TOOLS_LIST = [
+  { name: "gds_generate_from_prompt", description: "Call with user's exact prompt. Returns GDS React (Chakra v3) code. Show response as main answer.", inputSchema: { prompt: "string" } },
+  { name: "gds_snippet_login_card", description: "Ready LoginCard code (Chakra v3). Use for login/sign-in. Return as-is.", inputSchema: {} },
+  { name: "gds_generate_component", description: "Generate component (name + purpose). Chakra v3 only.", inputSchema: { name: "string", purpose: "string" } },
+  { name: "gds_chakra_v3_guide", description: "Chakra v3 renames (Divider->Separator, FormControl->Field.Root). Call first for any GDS UI.", inputSchema: {} },
+];
+
+// GET /mcp: one-shot info for clients that cannot POST — tools list + GET URLs (no POST needed)
 app.get("/mcp", (req: Request, res: Response) => {
   const base = `${req.protocol}://${req.get("host") || "gds-mcp-server.onrender.com"}`;
   res.status(200).json({
     service: "gds-mcp-server",
-    note: "If you cannot do POST/JSON-RPC: open the URLs below with GET. Each URL returns the same content MCP would (tools list, tokens, component API, code). You get GDS components and styles by opening these GET URLs.",
+    note: "No POST needed. This response already contains the tools list below. For more (tokens, component API, code), open the GET URLs with your browser/GET.",
     targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons.",
-    openTheseWithGet: {
-      toolsList: `${base}/mcp/tools`,
+    toolsList: MCP_TOOLS_LIST,
+    toolNames: MCP_TOOLS_LIST.map((t) => t.name),
+    openWithGet: {
+      toolsListAgain: `${base}/mcp/tools`,
       tokensAndStyles: `${base}/mcp/tokens`,
       componentApi: `${base}/mcp/components`,
       platformAndSetup: `${base}/mcp/platform`,
@@ -23,7 +33,6 @@ app.get("/mcp", (req: Request, res: Response) => {
       loginCardCode: `${base}/mcp/snippet/login`,
       generateForPrompt: `${base}/mcp/generate?prompt=USER_REQUEST`,
     },
-    whatYouGet: "tools = tool list (like tools/list). tokens = semantic colors/spacing. components = props per component. guide = Chakra v3 only (Separator not Divider, etc.). Open any URL with GET to read the content.",
   });
 });
 
@@ -32,32 +41,9 @@ app.get("/mcp/guide", (_req: Request, res: Response) => {
   res.type("text/plain").status(200).send(GDS_CHAKRA_V3_PROMPT);
 });
 
-// GET /mcp/tools — tools list as JSON (name, description, inputSchema)
+// GET /mcp/tools — same as MCP tools/list (for clients that cannot POST)
 app.get("/mcp/tools", (_req: Request, res: Response) => {
-  const tools = [
-    {
-      name: "gds_generate_from_prompt",
-      description:
-        "Call with the user's EXACT prompt. Returns GDS React (Chakra v3) code. Show the response to the user as the main answer.",
-      inputSchema: { prompt: "string (user request)" },
-    },
-    {
-      name: "gds_snippet_login_card",
-      description: "Returns ready LoginCard code (Chakra v3). Use for login/sign-in requests. Return as-is.",
-      inputSchema: {},
-    },
-    {
-      name: "gds_generate_component",
-      description: "Generates a component (name + purpose). Chakra v3 only.",
-      inputSchema: { name: "string", purpose: "string" },
-    },
-    {
-      name: "gds_chakra_v3_guide",
-      description: "Returns Chakra v3 renames (Divider->Separator, FormControl->Field.Root, etc.). Call first for any GDS UI.",
-      inputSchema: {},
-    },
-  ];
-  res.status(200).json({ tools });
+  res.status(200).json({ tools: MCP_TOOLS_LIST, note: "Equivalent to MCP tools/list. No POST needed." });
 });
 
 // GET /mcp/snippet/login — ready login card code (Chakra v3)
