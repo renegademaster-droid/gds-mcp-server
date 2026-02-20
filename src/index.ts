@@ -19,14 +19,14 @@ app.get("/mcp", (_req: Request, res: Response) => {
  * PREPEND this to every tool response so the model sees it FIRST before generating any code.
  * From GDS_CHAKRA_V3_PROMPT.txt: NEVER import list + USE THESE INSTEAD + login card example.
  */
-const GDS_CHAKRA_V3_PROMPT = `CRITICAL — GDS = Chakra UI v3 ONLY. Apply even when the user does NOT say "v3".
+const GDS_CHAKRA_V3_PROMPT = `CRITICAL - GDS = Chakra UI v3 ONLY. Apply even when the user does NOT say "v3".
   If you output Divider, FormControl, Card, CardHeader, CardBody, CardFooter, FormLabel, FormErrorMessage, FormHelperText, or any v2 name below, the code will FAIL at runtime ("doesn't provide an export named X"). Use ONLY the v3 names from "USE THESE INSTEAD".
-  Replace every v2 name with its v3 equivalent (e.g. Divider → Separator, FormControl → Field.Root, Card → Card.Root). Do not drop a component without replacing it.
+  Replace every v2 name with its v3 equivalent (e.g. Divider -> Separator, FormControl -> Field.Root, Card -> Card.Root). Do not drop a component without replacing it.
 
 NEVER import these from @chakra-ui/react (they do not exist in v3):
   Divider, Card, CardHeader, CardBody, CardFooter, FormControl, FormLabel, FormErrorMessage, FormHelperText, Table, Thead, Tbody, Tr, Th, Td, TableContainer, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton, Tab, TabList, TabPanel, TabPanels, Select, Alert, AlertIcon, AlertTitle, AlertDescription, Collapse
 
-USE THESE INSTEAD (Chakra v3) — replace every v2 usage with these:
+USE THESE INSTEAD (Chakra v3) - replace every v2 usage with these:
   Divider → Separator
   Card, CardHeader, CardBody, CardFooter → Card.Root, Card.Header, Card.Body, Card.Footer (and Card.Title, Card.Description)
   FormControl, FormLabel, FormErrorMessage, FormHelperText → Field.Root, Field.Label, Field.ErrorText, Field.HelperText
