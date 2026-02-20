@@ -7,21 +7,23 @@ app.use(express.json({ limit: "2mb" }));
 app.get("/", (_req: Request, res: Response) => res.status(200).send("ok"));
 app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
 
-// GET /mcp: some clients (e.g. ChatGPT) can only do GET — list GET endpoints they can use
+// GET /mcp: list GET endpoints so clients that cannot POST can still get GDS components and styles
 app.get("/mcp", (req: Request, res: Response) => {
   const base = `${req.protocol}://${req.get("host") || "gds-mcp-server.onrender.com"}`;
   res.status(200).json({
     service: "gds-mcp-server",
-    message: "MCP endpoint. Use POST /mcp with JSON-RPC (initialize, tools/list, tools/call).",
-    targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons. Not React Native or Figma.",
-    getEndpoints: "Open these URLs with GET to get GDS content:",
-    guide: `${base}/mcp/guide`,
-    tools: `${base}/mcp/tools`,
-    tokens: `${base}/mcp/tokens`,
-    components: `${base}/mcp/components`,
-    platform: `${base}/mcp/platform`,
-    snippetLogin: `${base}/mcp/snippet/login`,
-    generate: `${base}/mcp/generate?prompt=YOUR_PROMPT (URL-encode the user request)`,
+    note: "If you cannot do POST/JSON-RPC: open the URLs below with GET. Each URL returns the same content MCP would (tools list, tokens, component API, code). You get GDS components and styles by opening these GET URLs.",
+    targetPlatform: "React web, Chakra UI v3, @gdesignsystem/react + @gdesignsystem/theme + @gdesignsystem/icons.",
+    openTheseWithGet: {
+      toolsList: `${base}/mcp/tools`,
+      tokensAndStyles: `${base}/mcp/tokens`,
+      componentApi: `${base}/mcp/components`,
+      platformAndSetup: `${base}/mcp/platform`,
+      chakraV3Rules: `${base}/mcp/guide`,
+      loginCardCode: `${base}/mcp/snippet/login`,
+      generateForPrompt: `${base}/mcp/generate?prompt=USER_REQUEST`,
+    },
+    whatYouGet: "tools = tool list (like tools/list). tokens = semantic colors/spacing. components = props per component. guide = Chakra v3 only (Separator not Divider, etc.). Open any URL with GET to read the content.",
   });
 });
 
