@@ -3,8 +3,17 @@ import express, { Request, Response } from "express";
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
-// Health check (Render)
+// Root + health (Render health check may use / or /health)
+app.get("/", (_req: Request, res: Response) => res.status(200).send("ok"));
 app.get("/health", (_req: Request, res: Response) => res.status(200).send("ok"));
+
+// GET /mcp: some clients "open" the URL with GET; return 200 so connectivity check succeeds
+app.get("/mcp", (_req: Request, res: Response) => {
+  res.status(200).json({
+    service: "gds-mcp-server",
+    message: "MCP endpoint. Use POST /mcp with JSON-RPC (initialize, tools/list, tools/call).",
+  });
+});
 
 /**
  * PREPEND this to every tool response so the model sees it FIRST before generating any code.
