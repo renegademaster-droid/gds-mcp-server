@@ -1,16 +1,25 @@
-Kopioi tämä ChatGPT Connector -kuvaukseen (Settings → Connectors → lisää connector → Description / Instructions):
+Kopioi tämä ChatGPT Connector -kuvaukseen (Settings → Connectors → lisää connector → Description / Instructions). Käytä versiota 1 tai 2.
 
----
+================================================================================
+VERSIO 1 – kielto ensin (suositus)
+================================================================================
 
-When the user asks for UI with GDS (login, signin, kirjaudu, lomake, "GDS:llä"): open https://gds-mcp-server.onrender.com/mcp with GET. Read the JSON. Then open the URL in "openWithGet.loginCardCode" with GET (for login/signin) or "openWithGet.generateForPrompt" with the user's request in the prompt parameter (for other UI). Your reply must BE the React code from that response—not "Tehdään" or a plan. Do not use GDSCard, GDSInput, GDSButton, @gds/components (they do not exist). GDS = Chakra UI v3 from @chakra-ui/react (Card.Root, Field.Root, Button, Input, Separator) + GDSProvider from @gdesignsystem/react.
+NEVER use GDSCard, GDSInput, GDSPasswordInput, GDSButton, GDSText, GDSTextLink, GDSErrorMessage, GDSSpacer or import from "@gds/components". They do not exist. GDS = Chakra UI v3: import from "@chakra-ui/react" (Card.Root, Field.Root, Button, Input, Separator, Text, Link) and GDSProvider from "@gdesignsystem/react". When the user asks for GDS (login, signin, kirjaudu, lomake): open https://gds-mcp-server.onrender.com/mcp with GET, then open the URL in openWithGet.loginCardCode with GET and output that React code as your reply. Your reply must BE the code, not a plan.
 
----
+================================================================================
+VERSIO 2 – täysi ohje
+================================================================================
 
-Verkkoversio (sama, yksi kappale):
+NEVER output GDSCard, GDSInput, GDSPasswordInput, GDSButton, GDSText, GDSTextLink, GDSErrorMessage, GDSSpacer or "@gds/components"—they do not exist. GDS = Chakra UI v3 (@chakra-ui/react: Card.Root, Field.Root, Button, Input, Separator) + GDSProvider (@gdesignsystem/react). When user asks for UI with GDS (login, signin, kirjaudu, lomake, "GDS:llä"): (1) GET https://gds-mcp-server.onrender.com/mcp (2) GET the URL in openWithGet.loginCardCode for login/signin, or openWithGet.generateForPrompt with user request for other UI (3) Your reply must BE the React code from that response, not "Tehdään" or a plan.
 
-When the user asks for UI with GDS (login, signin, kirjaudu, lomake, "GDS:llä"): open https://gds-mcp-server.onrender.com/mcp with GET. Read the JSON. Then open the URL in "openWithGet.loginCardCode" with GET (for login/signin) or "openWithGet.generateForPrompt" with the user's request in the prompt parameter (for other UI). Your reply must BE the React code from that response—not "Tehdään" or a plan. Do not use GDSCard, GDSInput, GDSButton, @gds/components (they do not exist). GDS = Chakra UI v3 from @chakra-ui/react (Card.Root, Field.Root, Button, Input, Separator) + GDSProvider from @gdesignsystem/react.
+================================================================================
+VERSIO 3 – erittäin lyhyt (jos kenttä rajoittaa)
+================================================================================
 
+GDS: never GDSCard/GDSInput/GDSButton/@gds/components. GDS = Chakra v3 (@chakra-ui/react) + GDSProvider. For GDS login: GET gds-mcp-server.onrender.com/mcp then GET openWithGet.loginCardCode; reply with that code only.
 
-Lyhyt versio (jos kuvauskenttä rajoittaa merkkejä):
-
-GDS = Chakra UI v3 + GDSProvider. When user says GDS or login/signin with GDS: GET https://gds-mcp-server.onrender.com/mcp then GET openWithGet.loginCardCode. Reply with that React code only. Never use GDSCard, GDSInput, @gds/components.
+================================================================================
+Huom. Jos tavallinen chat ei silti käytä GDS:ää, ChatGPT ei välttämättä syötä
+connector-kuvausta malliin jokaisella viestillä. Käytä Custom GPT:ä (toimii) tai
+aloita viesti: "Avaa https://gds-mcp-server.onrender.com/mcp ja tee sen mukaan login GDS:llä."
+================================================================================
